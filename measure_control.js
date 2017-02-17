@@ -4,7 +4,7 @@
  * @Author: charlotte.wangchao 
  * @Date: 2017-02-16 13:42:45 
  * @Last Modified by: charlotte.wangchao
- * @Last Modified time: 2017-02-16 17:48:30
+ * @Last Modified time: 2017-02-17 12:02:00
  */
 
 
@@ -20,7 +20,10 @@ function MeasureControl(options) {
     this._onMeasureStart = this._onMeasureStart.bind(this);
     this._getPointsList = this._getPointsList.bind(this);
     this._getLineDistance = this._getLineDistance.bind(this);
-    this.__bindPointPopup = this._bindPointPopup.bind(this);
+    this._bindPointPopup = this._bindPointPopup.bind(this);
+    this._removeMeasure = this._removeMeasure.bind(this);
+    this._removeCurPopups = this._removeCurPopups.bind(this);
+    this._toggleEvents = this._toggleEvents.bind(this);
  }
 
 /**
@@ -35,6 +38,7 @@ MeasureControl.prototype.onAdd = function(map) {
     this._container.textContent = 'Hello, world';
     this.state = 'off';
     this.geojsonList = {};
+    this.events = {};
     this._map.on('click', this._onClick);
     this._map.on('dblclick', this._onDblClick);
     this._map.on('mousemove', this._onMousemove);
@@ -116,6 +120,9 @@ MeasureControl.prototype._onClick = function(e){
     var features = map.queryRenderedFeatures(e.point, { layers: ['measure-points-' + this._name] });
     this.point = [e.lngLat.lng, e.lngLat.lat];
 
+    //更新tips的文字
+    this.tips.innerText = '单击继续，双击结束测距';
+
     //画点
     var point = {
         "type": "Feature",
@@ -139,7 +146,6 @@ MeasureControl.prototype._onClick = function(e){
             return point.geometry.coordinates;
         });
 
-
         //计算距离
         this.prevDis = this.curDis || 0.0;
         this.curDis = this._getLineDistance(this.lineString, 'kilometers');
@@ -151,8 +157,6 @@ MeasureControl.prototype._onClick = function(e){
         
         this.curGeojson.features.push(this.lineString);
     }
-
-    
 
     //设置map的dataSource
     map.getSource('measure-geojson-' + this._name).setData(this.curGeojson);
@@ -182,15 +186,26 @@ MeasureControl.prototype._getPointsList = function(){
     });
 }
 
+/**
+ * @description 删除当前测距实例的popups
+ * @param {string} name 当前测距实例的名字
+ */
+MeasureControl.prototype._removeCurPopups = function(name){
+    this.geojsonList[name].popups.map(function(popup){
+        popup.remove();
+    });
+}
 
+/**
+ * @description 给每个Point绑定popup
+ * @param {array} popup数组
+ */
 MeasureControl.prototype._bindPointPopup = function(list) {
 
     var _this = this;
     
     //清除原先所有的popup
-    this.geojsonList[this._name].popups.map(function(popup){
-        popup.remove();
-    });
+    this._removeCurPopups(this._name);
 
     //重新绑定popup
     list.map(function(point) {
@@ -224,12 +239,33 @@ MeasureControl.prototype._onDblClick = function(e){
 
     //删除鼠标跟随tips
     this._removeNode(this.tips);
-
     //修改鼠标手势
     this._toggleCursor('-webkit-grab');
     
     //创建删除当前测距的button
+    var length = this.geojsonList[this._name].popups.length;
+    var options = this.geojsonList[this._name].popups[length - 1].options;
+    this.geojsonList[this._name].popups[length - 1].setHTML("<div>总距离：" + options.total + "<button data-name='"+this._name+"' id='dele-btn-"+this._name+"'>X</button></div>");
+    document.getElementById('dele-btn-'+this._name).addEventListener('click', this._removeMeasure);
     
+}
+
+/**
+ * @description 删除当前name的Measure实例
+ */
+MeasureControl.prototype._removeMeasure = function(e){
+    var name = e.target.getAttribute('data-name');
+    var map = this._map;
+    map.removeSource('measure-geojson-'+ name);
+    map.removeLayer('measure-points-' + name);
+    map.removeLayer('measure-lines-' + name);
+
+    //删除当前name的所有的popup
+    this._removeCurPopups(name);
+
+    //删除当前name的geojson对象
+    delete this.geojsonList[name];
+   
 }
 
 /**
@@ -242,9 +278,6 @@ MeasureControl.prototype._onMeasureStart = function(e){
 
     //进入测距模式
     this._toggleState('on');
-
-    //禁用map双击放大效果
-    this._map.doubleClickZoom.disable();
 
     //禁用map的其他click事件
     
@@ -260,15 +293,9 @@ MeasureControl.prototype._onMeasureStart = function(e){
 
     //设置当前测距实例的唯一key
     this._name = String(new Date().getTime());
-
-
-    //保存当前的测绘、popup
-
     
     //创建当前测距的mapSource、mapLayer
     this._onAddSourceLayer(e);
-   
-   
 
 }
 
@@ -374,7 +401,6 @@ MeasureControl.prototype._onMeasureEnd = function(e){
     console.log('结束测距模式');
     this._toggleState('off');
 
-    this._map.doubleClickZoom.enable();
 }
 
 /**
@@ -387,7 +413,9 @@ MeasureControl.prototype._onMousemove = function(e){
 
     //更新tips的位置
     this._setTipsPosition(e.originalEvent,this.tips);
-    //tips的文字
+
+    //创建移动的线图层
+    //测距鼠标位置和最后一个Point之间的距离
 
 
 }
@@ -399,6 +427,12 @@ MeasureControl.prototype._onMousemove = function(e){
  */
 MeasureControl.prototype._toggleState = function(state) {
     this.state = state;
+    //禁用map双击放大效果
+    if(state === 'on') {
+        this._map.doubleClickZoom.disable();
+    }else {
+        this._map.doubleClickZoom.enable();
+    }
 }
 
 /**
@@ -409,3 +443,18 @@ MeasureControl.prototype._toggleCursor = function(cursor) {
     this._map.getCanvas().style.cursor = cursor;
 }
 
+/**
+ * @description 事件防冲突
+ * @param {string} 是否防冲突
+ * @param {string} 事件名称
+ */
+MeasureControl.prototype._toggleEvents = function(toggle,event) {
+    if(!this.events[event]) {
+        this._map._listeners[event].map(function(item, index) {
+        if(item.name !== 'bound ') {
+            _this.events[event].push(item);
+        }
+    })    
+    }
+    
+}
