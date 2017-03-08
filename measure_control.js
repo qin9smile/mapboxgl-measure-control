@@ -4,7 +4,7 @@
  * @Author: charlotte.wangchao 
  * @Date: 2017-02-16 13:42:45 
  * @Last Modified by: charlotte.wangchao
- * @Last Modified time: 2017-03-08 15:28:00
+ * @Last Modified time: 2017-03-08 15:47:24
  */
 
 
@@ -35,7 +35,6 @@ MeasureControl.prototype.onAdd = function(map) {
     this._map = map;
     this._container = document.createElement('div');
     this._container.className = 'mapboxgl-ctrl mapboxgl-ctrl-group measure-ctrl-group';
-    // this._container.textContent = '测距';
     this.state = 'off';
 
     //所有测距geojson
@@ -49,7 +48,6 @@ MeasureControl.prototype.onAdd = function(map) {
     this._map.on('mousemove', this._onMousemove);
 
     this._measureOnButton = this._createNode('button','mapboxgl-ctrl-icon mapboxgl-ctrl-measure-off','',this._container, 'measure-off',this._onMeasureStart);
-
     return this._container;
 };
 
@@ -67,7 +65,6 @@ MeasureControl.DEFAULTS = {
     lineWidth: 3,
     lineCap: 'round',
     lineJoin: 'round', 
-    // cursorCrosshair: 'crosshair',
 };
 
 /**
