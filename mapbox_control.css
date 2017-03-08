@@ -1,0 +1,12 @@
+.measure-ctrl-group .mapboxgl-ctrl-icon {
+    background-size: 28px;
+    background-repeat: no-repeat;
+    background-position: center;
+}
+.measure-ctrl-group .mapboxgl-ctrl-measure-off{
+  
+  background-image: url('./imgs/ruler.png');
+}
+.measure-ctrl-group .mapboxgl-ctrl-measure-on {
+  background-image: url('./imgs/ruler_active.png');
+}

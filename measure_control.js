@@ -4,7 +4,7 @@
  * @Author: charlotte.wangchao 
  * @Date: 2017-02-16 13:42:45 
  * @Last Modified by: charlotte.wangchao
- * @Last Modified time: 2017-02-17 12:02:00
+ * @Last Modified time: 2017-03-08 15:28:00
  */
 
 
@@ -24,7 +24,7 @@ function MeasureControl(options) {
     this._removeMeasure = this._removeMeasure.bind(this);
     this._removeCurPopups = this._removeCurPopups.bind(this);
     this._toggleEvents = this._toggleEvents.bind(this);
- }
+}
 
 /**
  * @description 加载Measure组件
@@ -34,16 +34,21 @@ function MeasureControl(options) {
 MeasureControl.prototype.onAdd = function(map) {
     this._map = map;
     this._container = document.createElement('div');
-    this._container.className = 'mapboxgl-ctrl measure-ctrl-group';
-    this._container.textContent = 'Hello, world';
+    this._container.className = 'mapboxgl-ctrl mapboxgl-ctrl-group measure-ctrl-group';
+    // this._container.textContent = '测距';
     this.state = 'off';
+
+    //所有测距geojson
     this.geojsonList = {};
+
+    //储存可能冲突的事件
     this.events = {};
+    
     this._map.on('click', this._onClick);
     this._map.on('dblclick', this._onDblClick);
     this._map.on('mousemove', this._onMousemove);
 
-    this._measureOnButton = this._createNode('button','mapboxgl-ctrl-icon mapboxgl-ctrl-measure-on',this._container, 'measure-on',this._onMeasureStart);
+    this._measureOnButton = this._createNode('button','mapboxgl-ctrl-icon mapboxgl-ctrl-measure-off','',this._container, 'measure-off',this._onMeasureStart);
 
     return this._container;
 };
@@ -93,12 +98,14 @@ MeasureControl.prototype.getDefaultPosition = function(){
  * @param {func} fn click事件触发的方法
  * @returns {node}
  */
-MeasureControl.prototype._createNode = function(node,className,container, ariaLabel, fn){
+MeasureControl.prototype._createNode = function(node,className,textContent,container, ariaLabel, fn){
     var a = document.createElement(node);
     a.className = className;
+    a.textContent = textContent;
     a.setAttribute('aria-label',ariaLabel);
     if(fn) a.addEventListener('click', fn);
     container.appendChild(a);
+    
     return a;
 }
 
@@ -121,7 +128,7 @@ MeasureControl.prototype._onClick = function(e){
     this.point = [e.lngLat.lng, e.lngLat.lat];
 
     //更新tips的文字
-    this.tips.innerText = '单击继续，双击结束测距';
+    this.tips.textContent = '单击继续，双击结束测距';
 
     //画点
     var point = {
@@ -236,6 +243,9 @@ MeasureControl.prototype._onDblClick = function(e){
     if(this.state === 'off') return;
 
     this._toggleState('off');
+    this._toggleEvents('add','click');
+     this._measureOnButton.setAttribute('aria-label','measure-off');
+    this._measureOnButton.className = "mapboxgl-ctrl-icon mapboxgl-ctrl-measure-off";
 
     //删除鼠标跟随tips
     this._removeNode(this.tips);
@@ -278,9 +288,11 @@ MeasureControl.prototype._onMeasureStart = function(e){
 
     //进入测距模式
     this._toggleState('on');
+    this._measureOnButton.setAttribute('aria-label','measure-on');
+    this._measureOnButton.className = "mapboxgl-ctrl-icon mapboxgl-ctrl-measure-on";
 
     //禁用map的其他click事件
-    
+    this._toggleEvents('remove','click');
     //初始化总距离、之前的距离
     this.prevDis = 0.0;
     this.curDis = 0.0;
@@ -304,16 +316,14 @@ MeasureControl.prototype._onMeasureStart = function(e){
  * @param {event} 鼠标点击事件
  */
 MeasureControl.prototype._onAddMouseTips = function(e){
-    var tips = this.tips =  this._createNode('div','measure_mousemove_tips',document.body,'mousemove_tips');
+    var tips = this.tips =  this._createNode('div','measure_mousemove_tips','单击确定起点',document.body,'mousemove_tips');
     //设置tips的样式
     tips.style.position = 'absolute';
     this._setTipsPosition(e,tips);
-    tips.innerText = '单击确定起点';
     
     return tips;
 }
 
-//TODO 超出固定边界的话。。。
 /**
  * @description 设置鼠标跟随tips的位置
  * @param {event} 鼠标移动事件
@@ -324,9 +334,11 @@ MeasureControl.prototype._setTipsPosition = function(e,tips){
     var y = e.pageY || e.clientY + (document.documentElement.scrollLeft || document.body.scrollLeft);
     tips.style.left = x + 10 + 'px';
     tips.style.top = y + 10 + 'px';
-    tips.style.width = '100px';
-    tips.style.height = '30px';
+    tips.style.padding = '10px';
     tips.style.background = '#fff';
+    tips.style.fontSize = '10px';
+    tips.style.borderRadius = '3px';
+    tips.style.boxShadow = '0 1px 2px rgba(0,0,0,0.10)';
 }
 
 /**
@@ -449,12 +461,30 @@ MeasureControl.prototype._toggleCursor = function(cursor) {
  * @param {string} 事件名称
  */
 MeasureControl.prototype._toggleEvents = function(toggle,event) {
+    let _this = this;
+    
+    //假如没有储存对应event的事件
     if(!this.events[event]) {
+        this.events[event] = [];
         this._map._listeners[event].map(function(item, index) {
-        if(item.name !== 'bound ') {
-            _this.events[event].push(item);
-        }
-    })    
+            if(item.name !== 'bound ') {
+                _this.events[event].push(item);
+            }
+        });    
+    } 
+
+    if(this.events[event].length === 0) return;
+
+    //off其他不相关的event事件
+    if(toggle === 'remove') {
+        this.events[event].map(function(item, index){
+            _this._map.off(event, item);
+        });
+    }else if(toggle === 'add') {
+        //重新监听所有event事件
+        this.events[event].map(function(item, index){
+            _this._map.on(event, item);
+        });
     }
     
 }
