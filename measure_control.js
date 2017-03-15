@@ -10,20 +10,7 @@
 
 function MeasureControl(options) {
     this.options = Object.assign({},  MeasureControl.DEFAULTS, options);
-    this._onClick = this._onClick.bind(this);
-    this._onDblClick = this._onDblClick.bind(this);
-    this._onMousemove = this._onMousemove.bind(this);
-    this._onAddSourceLayer = this._onAddSourceLayer.bind(this);
-    this._toggleState = this._toggleState.bind(this);
-    this._onAddMouseTips = this._onAddMouseTips.bind(this);
-    this._toggleCursor = this._toggleCursor.bind(this);
-    this._onMeasureStart = this._onMeasureStart.bind(this);
-    this._getPointsList = this._getPointsList.bind(this);
-    this._getLineDistance = this._getLineDistance.bind(this);
-    this._bindPointPopup = this._bindPointPopup.bind(this);
-    this._removeMeasure = this._removeMeasure.bind(this);
-    this._removeCurPopups = this._removeCurPopups.bind(this);
-    this._toggleEvents = this._toggleEvents.bind(this);
+
 }
 
 /**
@@ -458,7 +445,7 @@ MeasureControl.prototype._toggleCursor = function(cursor) {
  * @param {string} 事件名称
  */
 MeasureControl.prototype._toggleEvents = function(toggle,event) {
-    let _this = this;
+    var _this = this;
     
     //假如没有储存对应event的事件
     if(!this.events[event]) {
