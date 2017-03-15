@@ -10,6 +10,8 @@
 
 function MeasureControl(options) {
     this.options = Object.assign({},  MeasureControl.DEFAULTS, options);
+
+    //不能删除 不然会报错的
     this._onClick = this._onClick.bind(this);
     this._onDblClick = this._onDblClick.bind(this);
     this._onMousemove = this._onMousemove.bind(this);
@@ -122,17 +124,16 @@ MeasureControl.prototype._onClick = function(e){
 
     var map = this._map;
     var features = map.queryRenderedFeatures(e.point, { layers: ['measure-points-' + this._name] });
-    this.point = [e.lngLat.lng, e.lngLat.lat];
 
     //更新tips的文字
     this.tips.textContent = '单击继续，双击结束测距';
 
     //画点
-    var point = {
+    var point = this.point = {
         "type": "Feature",
         "geometry": {
             "type": "Point",
-            "coordinates": this.point
+            "coordinates": [e.lngLat.lng, e.lngLat.lat]
         },
         "properties": {
             "id": String(new Date().getTime()),
@@ -366,7 +367,15 @@ MeasureControl.prototype._onAddSourceLayer = function(){
         "type": "geojson",
         "data": this.curGeojson
     });
-    
+
+    //dataSource
+    this._map.addSource('measure-geojson-mousemove', {
+        "type": "geojson",
+        "data":  {
+            "type": "FeatureCollection",
+            "features": []
+        }
+    });
     //线图层
     this._map.addLayer({
         id: 'measure-lines-' + this._name,
@@ -397,6 +406,22 @@ MeasureControl.prototype._onAddSourceLayer = function(){
         filter: ['in', '$type', 'Point']
     });
 
+    //mouseover线图层
+
+    this._map.addLayer({
+        id: 'measure-lines-mousemove',
+        type: 'line',
+        source: 'measure-geojson-mousemove',
+        layout: {
+            'line-cap': lineCap,
+            'line-join': lineJoin
+        },
+        paint: {
+            'line-color': lineColor,
+            'line-width': lineWidth
+        },
+    });
+
      //保存所有的测绘feature、popup
     this.geojsonList[this._name] = {geojson: this.curGeojson,popups: []};
 }
@@ -422,11 +447,39 @@ MeasureControl.prototype._onMousemove = function(e){
 
     //更新tips的位置
     this._setTipsPosition(e.originalEvent,this.tips);
+    if(!this.point) return;
 
-    //创建移动的线图层
+    //鼠标当前位置点
+    var point = {
+        "type": "Feature",
+        "geometry": {
+            "type": "Point",
+            "coordinates": [e.lngLat.lng, e.lngLat.lat]
+        },
+        "properties": {}
+    };
+
+    //绘制最后一个点和鼠标当前位置的线段
+    var curcoord = this.point.geometry.coordinates;
+    var lineString = {
+        "type": "Feature",
+        "geometry": {
+            "type": "LineString",
+            "coordinates": [curcoord,[e.lngLat.lng, e.lngLat.lat]]
+        }
+    };
+
     //测距鼠标位置和最后一个Point之间的距离
+    var distance = this._getLineDistance(lineString, 'kilometers');
+    //创建移动的线图层
+    if((distance - 0) === 0) return;
 
+    this._map.getSource('measure-geojson-mousemove').setData({
+        "type": "FeatureCollection",
+        "features": [lineString]
+    });
 
+    this.tips.innerText = '当前距离：'+ distance + 'km\n单击继续，双击结束测距';
 }
 
 /**
@@ -458,7 +511,7 @@ MeasureControl.prototype._toggleCursor = function(cursor) {
  * @param {string} 事件名称
  */
 MeasureControl.prototype._toggleEvents = function(toggle,event) {
-    let _this = this;
+    var _this = this;
     
     //假如没有储存对应event的事件
     if(!this.events[event]) {
