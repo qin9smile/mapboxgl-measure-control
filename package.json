@@ -8,7 +8,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://qin9smile:quanshiai1993@github.com/qin9smile/mapboxgl-measure-control.git"
+    "url": "git+https://github.com/qin9smile/mapboxgl-measure-control.git"
   },
   "keywords": [
     "mapboxgl",
