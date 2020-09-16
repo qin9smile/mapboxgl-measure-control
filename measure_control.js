@@ -267,6 +267,8 @@ MeasureControl.prototype._removeMeasure = function(e){
     map.removeSource('measure-geojson-'+ name);
     map.removeLayer('measure-points-' + name);
     map.removeLayer('measure-lines-' + name);
+    // 删除mousemove layer
+    map.removeLayer('measure-lines-mousemove');
 
     //删除当前name的所有的popup
     this._removeCurPopups(name);
