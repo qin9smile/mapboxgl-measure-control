@@ -249,6 +249,8 @@ MeasureControl.prototype._onDblClick = function(e){
     this._removeNode(this.tips);
     //修改鼠标手势
     this._toggleCursor('-webkit-grab');
+    // 重置记录的点击坐标
+    this.point = void 0;
     
     //创建删除当前测距的button
     var length = this.geojsonList[this._name].popups.length;
@@ -269,6 +271,7 @@ MeasureControl.prototype._removeMeasure = function(e){
     map.removeLayer('measure-lines-' + name);
     // 删除mousemove layer
     map.removeLayer('measure-lines-mousemove');
+    map.removeSource('measure-geojson-mousemove');
 
     //删除当前name的所有的popup
     this._removeCurPopups(name);
